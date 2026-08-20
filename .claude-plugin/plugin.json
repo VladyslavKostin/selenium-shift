@@ -1,0 +1,9 @@
+{
+  "name": "selenium-shift",
+  "version": "0.1.0",
+  "description": "Language-preserving Selenium to Playwright migration for Java and C#, with async-closure analysis for .NET.",
+  "author": { "name": "Vladyslav Kostin", "url": "https://github.com/VladyslavKostin" },
+  "homepage": "https://github.com/VladyslavKostin/selenium-shift",
+  "license": "MIT",
+  "keywords": ["selenium", "playwright", "migration", "test-automation", "csharp", "java", "codemod"]
+}

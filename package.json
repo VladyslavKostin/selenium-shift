@@ -1,0 +1,19 @@
+{
+  "name": "selenium-shift",
+  "version": "0.1.0",
+  "description": "Language-preserving Selenium to Playwright migration tooling.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "bin": {
+    "selenium-shift-inventory": "./bin/inventory.mjs",
+    "selenium-shift-async": "./bin/async-predict.mjs"
+  },
+  "scripts": {
+    "test": "node test/run.mjs",
+    "demo:cs": "node bin/inventory.mjs fixtures/csharp --lang csharp",
+    "demo:java": "node bin/inventory.mjs fixtures/java --lang java",
+    "demo:async": "node bin/async-predict.mjs fixtures/csharp"
+  },
+  "dependencies": {}
+}

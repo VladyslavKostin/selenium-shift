@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Inventory: C# fixtures",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/inventory.mjs",
+      "args": ["fixtures/csharp", "--lang", "csharp"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Inventory: Java fixtures",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/inventory.mjs",
+      "args": ["fixtures/java", "--lang", "java"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Async predict: C# fixtures",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/async-predict.mjs",
+      "args": ["fixtures/csharp"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "selenium-shift",
+  "owner": { "name": "Vladyslav Kostin", "url": "https://github.com/VladyslavKostin" },
+  "plugins": [
+    {
+      "name": "selenium-shift",
+      "source": "./",
+      "description": "Migrate Selenium suites to Playwright without changing language. Audits first, predicts C# async impact, then migrates."
+    }
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "language": "csharp",
+  "target": "Microsoft.Playwright",
+  "notes": "The `async` flag is the seed for the async closure pass. `locatorSafe` marks rules whose result is an ILocator, which is created synchronously in Playwright .NET and therefore does NOT make the enclosing member async. Getting locatorSafe right is what stops async from infecting every property in a page object.",
+  "rules": [
+    {
+      "id": "loc.by-id",
+      "match": ".FindElement(By.Id($A))",
+      "emit": "Page.GetByTestId($1)",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "review",
+      "note": "By.Id maps cleanly only if the id doubles as a test id. Review whether GetByTestId, GetByRole or Locator(\"#id\") is the honest equivalent."
+    },
+    {
+      "id": "loc.by-name",
+      "match": ".FindElement(By.Name($A))",
+      "emit": "Page.Locator($\"[name='{$1}']\")",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.by-css",
+      "match": ".FindElement(By.CssSelector($A))",
+      "emit": "Page.Locator($1)",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.by-xpath",
+      "match": ".FindElement(By.XPath($A))",
+      "emit": "Page.Locator($1)",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "low",
+      "note": "XPath works but is the most brittle option carried forward. Flag for rewrite to a role- or text-based locator; this is the single biggest quality win in the migration."
+    },
+    {
+      "id": "loc.by-link-text",
+      "match": ".FindElement(By.LinkText($A))",
+      "emit": "Page.GetByRole(AriaRole.Link, new() { Name = $1 })",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.by-class",
+      "match": ".FindElement(By.ClassName($A))",
+      "emit": "Page.Locator($\".{$1}\")",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "review"
+    },
+    {
+      "id": "loc.find-elements",
+      "match": ".FindElements(By.CssSelector($A))",
+      "emit": "Page.Locator($1)",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "review",
+      "note": "Playwright locators are inherently plural. Count via CountAsync(), iterate via AllAsync(). There is no list to materialise up front."
+    },
+    {
+      "id": "act.click",
+      "match": ".Click()",
+      "emit": "ClickAsync()",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "act.sendkeys",
+      "match": ".SendKeys($A)",
+      "emit": "FillAsync($1)",
+      "async": true,
+      "confidence": "high",
+      "note": "Use PressSequentiallyAsync instead when the field has key-by-key JS handlers such as autocomplete."
+    },
+    {
+      "id": "act.clear",
+      "match": ".Clear()",
+      "emit": "ClearAsync()",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "act.submit",
+      "match": ".Submit()",
+      "emit": "PressAsync(\"Enter\")",
+      "async": true,
+      "confidence": "review"
+    },
+    {
+      "id": "state.text",
+      "match": ".Text",
+      "emit": "TextContentAsync()",
+      "async": true,
+      "confidence": "high",
+      "note": "Prefer Expect(locator).ToHaveTextAsync(...) in assertions — it retries, TextContentAsync does not."
+    },
+    {
+      "id": "state.displayed",
+      "match": ".Displayed",
+      "emit": "IsVisibleAsync()",
+      "async": true,
+      "confidence": "high",
+      "note": "In an assertion, Expect(locator).ToBeVisibleAsync() is strictly better: IsVisibleAsync is a point-in-time check with no retry."
+    },
+    {
+      "id": "state.enabled",
+      "match": ".Enabled",
+      "emit": "IsEnabledAsync()",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "state.selected",
+      "match": ".Selected",
+      "emit": "IsCheckedAsync()",
+      "async": true,
+      "confidence": "review"
+    },
+    {
+      "id": "state.attribute",
+      "match": ".GetAttribute($A)",
+      "emit": "GetAttributeAsync($1)",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "wait.explicit",
+      "match": "new WebDriverWait(",
+      "emit": "",
+      "async": false,
+      "confidence": "delete",
+      "note": "Playwright auto-waits on every action and every web-first assertion. Explicit waits are not translated, they are deleted. A migrated file that still contains a wait construct is a migration bug."
+    },
+    {
+      "id": "wait.until",
+      "match": ".Until($LAMBDA)",
+      "emit": "",
+      "async": false,
+      "confidence": "delete",
+      "note": "Delete. If the condition guarded a real state change, express it as Expect(locator).ToBeVisibleAsync() or similar instead of a wait."
+    },
+    {
+      "id": "wait.implicit",
+      "match": ".Timeouts().ImplicitWait",
+      "emit": "",
+      "async": false,
+      "confidence": "delete",
+      "note": "Set Playwright's global timeout in the test config instead."
+    },
+    {
+      "id": "wait.sleep",
+      "match": "Thread.Sleep($A)",
+      "emit": "",
+      "async": false,
+      "confidence": "delete",
+      "note": "Never translate to WaitForTimeoutAsync. A hard sleep surviving migration means the underlying wait condition was never understood. The verify pass fails on these deliberately."
+    },
+    {
+      "id": "nav.goto",
+      "match": ".Navigate().GoToUrl($A)",
+      "emit": "Page.GotoAsync($1)",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "nav.url-set",
+      "match": ".Url",
+      "emit": "Page.Url",
+      "async": false,
+      "confidence": "review",
+      "note": "Reading Url is sync in Playwright. Assigning it is a navigation and becomes GotoAsync."
+    },
+    {
+      "id": "nav.title",
+      "match": ".Title",
+      "emit": "TitleAsync()",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "nav.back",
+      "match": ".Navigate().Back()",
+      "emit": "Page.GoBackAsync()",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "life.quit",
+      "match": ".Quit()",
+      "emit": "",
+      "async": false,
+      "confidence": "delete",
+      "note": "Browser lifecycle belongs to the Playwright test fixture. Remove manual teardown entirely — this is a Tier 2 structural change, not a local rewrite."
+    },
+    {
+      "id": "life.dispose",
+      "match": ".Dispose()",
+      "emit": "",
+      "async": false,
+      "confidence": "delete"
+    },
+    {
+      "id": "js.execute",
+      "match": ".ExecuteScript($A)",
+      "emit": "Page.EvaluateAsync($1)",
+      "async": true,
+      "confidence": "review",
+      "note": "Most JavascriptExecutor calls in Selenium suites exist to work around a wait or a click that WebDriver could not do. Check whether a native Playwright action removes the need for script injection at all."
+    },
+    {
+      "id": "frame.switch",
+      "match": ".SwitchTo().Frame($A)",
+      "emit": "Page.FrameLocator($1)",
+      "async": false,
+      "locatorSafe": true,
+      "confidence": "review",
+      "note": "Selenium switches context statefully; Playwright scopes per locator. This usually restructures the surrounding method rather than mapping one to one."
+    },
+    {
+      "id": "alert.accept",
+      "match": ".SwitchTo().Alert().Accept()",
+      "emit": "Page.Dialog += (_, d) => d.AcceptAsync()",
+      "async": false,
+      "confidence": "low",
+      "note": "Playwright handles dialogs with a handler registered BEFORE the triggering action. Ordering inverts — always needs human review."
+    },
+    {
+      "id": "select.by-text",
+      "match": ".SelectByText($A)",
+      "emit": "SelectOptionAsync(new SelectOptionValue { Label = $1 })",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "select.by-value",
+      "match": ".SelectByValue($A)",
+      "emit": "SelectOptionAsync($1)",
+      "async": true,
+      "confidence": "high"
+    },
+    {
+      "id": "screenshot",
+      "match": ".GetScreenshot()",
+      "emit": "Page.ScreenshotAsync()",
+      "async": true,
+      "confidence": "review"
+    }
+  ],
+  "matching": "Patterns are matched as segments against the normalised fingerprint. A leading dot means the pattern may appear anywhere in the chain, so FindElement(...).Text matches both its locator rule and its action rule. $A matches any argument class ($STR, $NUM, $ARG, $EXPR, $LAMBDA)."
+}

@@ -1,0 +1,168 @@
+{
+  "language": "java",
+  "target": "com.microsoft.playwright",
+  "notes": "Playwright for Java is a synchronous, blocking API. No rule here sets `async`, and there is no async closure pass for Java. That single fact is why Java migration automates far more cleanly than C#: method signatures never change, so the call graph never needs to be touched.",
+  "rules": [
+    {
+      "id": "loc.by-id",
+      "match": ".findElement(By.id($A))",
+      "emit": "page.getByTestId($1)",
+      "locatorSafe": true,
+      "confidence": "review",
+      "note": "Only correct if the id doubles as a test id; otherwise page.locator(\"#id\")."
+    },
+    {
+      "id": "loc.by-css",
+      "match": ".findElement(By.cssSelector($A))",
+      "emit": "page.locator($1)",
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.by-xpath",
+      "match": ".findElement(By.xpath($A))",
+      "emit": "page.locator($1)",
+      "locatorSafe": true,
+      "confidence": "low",
+      "note": "Carried forward verbatim but still brittle. Flag for rewrite to getByRole/getByText."
+    },
+    {
+      "id": "loc.by-name",
+      "match": ".findElement(By.name($A))",
+      "emit": "page.locator(\"[name='\" + $1 + \"']\")",
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.by-link-text",
+      "match": ".findElement(By.linkText($A))",
+      "emit": "page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName($1))",
+      "locatorSafe": true,
+      "confidence": "high"
+    },
+    {
+      "id": "loc.find-elements",
+      "match": ".findElements(By.cssSelector($A))",
+      "emit": "page.locator($1)",
+      "locatorSafe": true,
+      "confidence": "review",
+      "note": "Locators are plural by nature. Use .count() and .all() rather than materialising a List<WebElement>."
+    },
+    {
+      "id": "act.click",
+      "match": ".click()",
+      "emit": "click()",
+      "confidence": "high"
+    },
+    {
+      "id": "act.sendkeys",
+      "match": ".sendKeys($A)",
+      "emit": "fill($1)",
+      "confidence": "high",
+      "note": "Use pressSequentially() when key-by-key handlers matter."
+    },
+    {
+      "id": "act.clear",
+      "match": ".clear()",
+      "emit": "clear()",
+      "confidence": "high"
+    },
+    {
+      "id": "state.text",
+      "match": ".getText()",
+      "emit": "textContent()",
+      "confidence": "high",
+      "note": "Prefer assertThat(locator).hasText(...) in assertions — it retries."
+    },
+    {
+      "id": "state.displayed",
+      "match": ".isDisplayed()",
+      "emit": "isVisible()",
+      "confidence": "high",
+      "note": "In assertions use assertThat(locator).isVisible() instead; isVisible() does not retry."
+    },
+    {
+      "id": "state.enabled",
+      "match": ".isEnabled()",
+      "emit": "isEnabled()",
+      "confidence": "high"
+    },
+    {
+      "id": "state.attribute",
+      "match": ".getAttribute($A)",
+      "emit": "getAttribute($1)",
+      "confidence": "high"
+    },
+    {
+      "id": "wait.explicit",
+      "match": "new WebDriverWait(",
+      "emit": "",
+      "confidence": "delete",
+      "note": "Auto-waiting replaces this. Deleted, not translated."
+    },
+    {
+      "id": "wait.until",
+      "match": ".until($LAMBDA)",
+      "emit": "",
+      "confidence": "delete"
+    },
+    {
+      "id": "wait.sleep",
+      "match": "Thread.sleep($A)",
+      "emit": "",
+      "confidence": "delete",
+      "note": "Never becomes waitForTimeout. The verify pass fails on survivors."
+    },
+    {
+      "id": "nav.goto",
+      "match": ".get($A)",
+      "emit": "page.navigate($1)",
+      "confidence": "high"
+    },
+    {
+      "id": "nav.title",
+      "match": ".getTitle()",
+      "emit": "page.title()",
+      "confidence": "high"
+    },
+    {
+      "id": "nav.current-url",
+      "match": ".getCurrentUrl()",
+      "emit": "page.url()",
+      "confidence": "high"
+    },
+    {
+      "id": "life.quit",
+      "match": ".quit()",
+      "emit": "",
+      "confidence": "delete",
+      "note": "Lifecycle moves to the fixture. Tier 2 change."
+    },
+    {
+      "id": "js.execute",
+      "match": ".executeScript($A)",
+      "emit": "page.evaluate($1)",
+      "confidence": "review"
+    },
+    {
+      "id": "frame.switch",
+      "match": ".switchTo().frame($A)",
+      "emit": "page.frameLocator($1)",
+      "locatorSafe": true,
+      "confidence": "review"
+    },
+    {
+      "id": "select.by-text",
+      "match": ".selectByVisibleText($A)",
+      "emit": "selectOption(new SelectOption().setLabel($1))",
+      "confidence": "high"
+    },
+    {
+      "id": "select.by-value",
+      "match": ".selectByValue($A)",
+      "emit": "selectOption($1)",
+      "confidence": "high"
+    }
+  ],
+  "matching": "Patterns are matched as segments against the normalised fingerprint. A leading dot means the pattern may appear anywhere in the chain, so FindElement(...).Text matches both its locator rule and its action rule. $A matches any argument class ($STR, $NUM, $ARG, $EXPR, $LAMBDA)."
+}
