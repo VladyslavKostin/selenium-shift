@@ -108,15 +108,6 @@ claude plugin validate ~/path/to/selenium-shift
 That checks `plugin.json` plus the frontmatter of all four `SKILL.md` files.
 Inside a session, `/plugin` shows what actually registered.
 
-### Install it properly
-
-Once you want it available everywhere:
-
-```
-/plugin marketplace add VladyslavKostin/selenium-shift
-/plugin install selenium-shift@selenium-shift
-```
-
 ### Use it
 
 Don't invoke skills by name. They trigger from their `description`, so
