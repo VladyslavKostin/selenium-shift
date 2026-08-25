@@ -82,23 +82,10 @@ none:
 
 ## Install
 
-### As a Claude Code plugin (recommended)
+### As a Claude Code plugin
 
-```bash
-claude
-```
-
-then, inside the session:
-
-```
-/plugin marketplace add VladyslavKostin/selenium-shift
-/plugin install selenium-shift
-```
-
-### Local checkout, single session
-
-Useful for trying it, or for hacking on the rules. Nothing is copied and
-nothing is written to your global config:
+Clone the repo, then point Claude Code at it from the suite you are migrating.
+Nothing is copied and nothing is written to your global config:
 
 ```bash
 git clone https://github.com/VladyslavKostin/selenium-shift ~/selenium-shift
@@ -107,11 +94,15 @@ cd ~/path/to/your-selenium-suite       # the project being migrated
 claude --plugin-dir ~/selenium-shift   # point at this repo
 ```
 
-Verify it registered with `/plugin` inside the session, or before you push:
+The four skills register for that session. Check them with `/plugin` inside
+the session, or validate the plugin before committing changes to it:
 
 ```bash
 claude plugin validate ~/selenium-shift
 ```
+
+Skill edits take effect immediately in a running session, so this is also the
+setup to use if you want to tune the rules against your own codebase.
 
 ### Standalone CLI, no Claude
 
