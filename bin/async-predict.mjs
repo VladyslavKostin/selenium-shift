@@ -54,24 +54,42 @@ console.log(`  cannot be made async    ${s.blocked}  <- human work`);
 console.log(`  cross-type groups       ${s.hierarchyGroups}  (must change together)\n`);
 
 const blocked = plan.members.filter((m) => m.blockers.length);
+const clean = plan.members.filter((m) => !m.blockers.length);
+const verbose = process.argv.includes("--verbose");
+
+// Grouped counts by default. Per-site detail is what --md is for: a reader
+// working one blocker greps that file, and a reader who does not need it pays
+// nothing to skip it. Printing every site here would make the console output
+// scale with suite size, which is the one thing it must not do.
 if (blocked.length) {
-  console.log("  Blockers\n  " + "-".repeat(60));
+  const byKind = new Map();
   for (const m of blocked) {
-    console.log(`  ${m.file}:${m.line}  ${m.type}.${m.name}`);
-    for (const b of m.blockers) console.log(`      [${b.kind}] ${b.fix}`);
-    console.log();
+    const kind = m.blockers[0].kind;
+    if (!byKind.has(kind)) byKind.set(kind, []);
+    byKind.get(kind).push(m);
   }
+  console.log("  Blockers — each needs a human decision\n  " + "-".repeat(60));
+  for (const [kind, items] of byKind) {
+    console.log(`  ${String(items.length).padStart(4)}  ${kind}`);
+    console.log(`        ${items[0].blockers[0].fix}`);
+  }
+  console.log();
 }
 
-const clean = plan.members.filter((m) => !m.blockers.length);
-if (clean.length) {
-  console.log(`  Mechanical signature changes (${clean.length})\n  ` + "-".repeat(60));
-  for (const m of clean.slice(0, 15)) {
-    console.log(`  ${m.file}:${m.line}`);
-    console.log(`      -  ${m.currentSignature}`);
-    console.log(`      +  ${m.proposedSignature}`);
+console.log(`  Mechanical signature changes: ${clean.length}`);
+if (!arg("--md") && !arg("--json") && (blocked.length || clean.length)) {
+  console.log(`  Pass --md <path> for per-site detail.`);
+}
+console.log();
+
+if (verbose) {
+  for (const m of blocked) {
+    console.log(`  ${m.file}:${m.line}  ${m.type}.${m.name}  [${m.blockers[0].kind}]`);
   }
-  if (clean.length > 15) console.log(`  ... and ${clean.length - 15} more\n`);
+  for (const m of clean) {
+    console.log(`  ${m.file}:${m.line}  ${m.currentSignature}  ->  ${m.proposedSignature}`);
+  }
+  console.log();
 }
 
 const jsonOut = arg("--json");

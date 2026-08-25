@@ -7,12 +7,14 @@
  * fact that Java produces no async work at all.
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { buildLedger } from "../packages/core/ledger.mjs";
 import { analyse } from "../packages/csharp-async/closure.mjs";
+import { loadLocalRules, applyRules } from "../packages/core/local-rules.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 let pass = 0, fail = 0;
@@ -105,6 +107,74 @@ check("Java ledger leaves nothing unmapped", javaLedger.summary.unmapped === 0);
 check(
   "no Java rule is marked async — the Java binding is synchronous",
   javaLedger.clusters.every((c) => !c.async),
+);
+
+// ---- Project-local rule overlay ----------------------------------------
+// The overlay exists so a codebase's own idioms are decided once and replayed,
+// instead of being rediscovered by a human (or a model) on every run.
+const mktemp = () => {
+  const dir = join(tmpdir(), `selenium-shift-test-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+};
+
+const emptyOverlay = loadLocalRules(mktemp());
+check(
+  "a suite with no overlay file loads an empty overlay, not an error",
+  emptyOverlay.tier1.length === 0 && emptyOverlay.source === null,
+);
+
+const overlayDir = mktemp();
+mkdirSync(join(overlayDir, ".selenium-shift"), { recursive: true });
+writeFileSync(
+  join(overlayDir, ".selenium-shift", "rules.local.json"),
+  JSON.stringify({
+    tier1: [{ id: "unwrap-find", find: "\\bDriver\\.FindElement\\((\\w+)\\)", replace: "$1", regex: true }],
+    memberBody: [{ id: "helper", find: "Helper.Type(", replace: "await Helper.TypeAsync(" }],
+  }),
+);
+const overlay = loadLocalRules(overlayDir);
+check("overlay loads tier1 and memberBody rules", overlay.tier1.length === 1 && overlay.memberBody.length === 1);
+check(
+  "a tier1 rule rewrites the source",
+  applyRules("Driver.FindElement(locator).Click();", overlay.tier1).result === "locator.Click();",
+);
+check(
+  "memberBody rules may introduce await",
+  applyRules("Helper.Type(x);", overlay.memberBody).result === "await Helper.TypeAsync(x);",
+);
+
+// Tier 1 runs file-wide and cannot tell a sync property from an async method,
+// so a rule that injects `await` there would produce uncompilable code. The
+// loader has to reject it rather than let it through.
+let rejected = false;
+try {
+  const bad = mktemp();
+  mkdirSync(join(bad, ".selenium-shift"), { recursive: true });
+  writeFileSync(
+    join(bad, ".selenium-shift", "rules.local.json"),
+    JSON.stringify({ tier1: [{ id: "bad", find: "x.Click()", replace: "await x.ClickAsync()" }] }),
+  );
+  loadLocalRules(bad);
+} catch (err) {
+  rejected = /may not introduce "await"/.test(err.message);
+}
+check("a tier1 rule injecting await is rejected at load time", rejected);
+
+// asyncSeeds is the escape hatch for helpers defined outside the scanned tree,
+// which the closure pass cannot otherwise discover.
+const seededPlan = analyse(
+  [{ path: "Ext.cs", src: "class P { public void Go() { ExternalHelper.Navigate(\"/x\"); } }" }],
+  { asyncSeeds: [/ExternalHelper\.Navigate/] },
+);
+check(
+  "asyncSeeds forces a member async with no Selenium call in it",
+  seededPlan.members.some((m) => m.name === "Go"),
+);
+check(
+  "without asyncSeeds the same member stays synchronous",
+  !analyse([{ path: "Ext.cs", src: "class P { public void Go() { ExternalHelper.Navigate(\"/x\"); } }" }])
+    .members.some((m) => m.name === "Go"),
 );
 
 console.log(`\n  ${pass} passed, ${fail} failed\n`);

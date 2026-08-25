@@ -96,8 +96,22 @@ was supposed to remove.
 
 For the full field reference see `references/ledger-format.md`.
 
+## Turning unmapped patterns into decisions
+
+Unmapped patterns are the whole point of the audit, and for C# they have a
+place to go. Each one is decided once and written into the project's rule
+overlay at `<suite-root>/.selenium-shift/rules.local.json`; the codemod then
+applies it to every site automatically, on this run and every future one.
+
+Walk the user through the unmapped list, agree a rewrite per pattern, write
+the overlay, and hand off to `migrate-csharp` — which reads it. See that
+skill's `references/local-rules.md` for the format.
+
+Decide per pattern, never per site. A suite with 2,000 call sites and 30
+patterns needs 30 decisions; making them one file at a time makes them
+hundreds of times over, and inconsistently.
+
 ## What this skill does not do
 
-It does not modify files. If the user wants the migration performed, run the
-audit first, walk them through the unmapped patterns, then hand off to
-`migrate-java` or `migrate-csharp`.
+It does not modify files. If the user wants the migration performed, hand off
+to `migrate-java` or `migrate-csharp`.
