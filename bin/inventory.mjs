@@ -60,13 +60,27 @@ console.log(`  collapse ratio   ${s.collapseRatio}x  (sites per decision)`);
 console.log(`  unmapped         ${s.unmapped} pattern(s) need a human decision\n`);
 
 const label = { high: "auto", review: "review", low: "rewrite", delete: "delete", unmapped: "DECIDE" };
+
+// Unmapped patterns first, then low/review. Anything marked `auto` or `delete`
+// needs no decision, so it is the least useful thing a reader could spend
+// attention (or context) on — it goes last and gets truncated first.
+const priority = { unmapped: 0, low: 1, review: 2, delete: 3, high: 4 };
+const ranked = [...ledger.clusters].sort(
+  (a, b) => (priority[a.confidence] ?? 9) - (priority[b.confidence] ?? 9) || b.count - a.count,
+);
+
+const CAP = 20;
 console.log("  pattern                                                     n  action");
 console.log("  " + "-".repeat(74));
-for (const c of ledger.clusters.slice(0, 25)) {
+for (const c of ranked.slice(0, CAP)) {
   const fp = c.fingerprint.length > 54 ? c.fingerprint.slice(0, 51) + "..." : c.fingerprint;
   console.log(`  ${fp.padEnd(54)} ${String(c.count).padStart(4)}  ${label[c.confidence] ?? c.confidence}`);
 }
-if (ledger.clusters.length > 25) console.log(`  ... and ${ledger.clusters.length - 25} more\n`);
+if (ranked.length > CAP) {
+  const hidden = ranked.slice(CAP);
+  const hiddenDecisions = hidden.filter((c) => c.confidence === "unmapped" || c.confidence === "low").length;
+  console.log(`  ... and ${hidden.length} more (${hiddenDecisions} needing a decision) — see --md report\n`);
+}
 
 const jsonOut = arg("--json");
 if (jsonOut) { writeFileSync(jsonOut, JSON.stringify(ledger, null, 2)); console.log(`\n  ledger  -> ${jsonOut}`); }

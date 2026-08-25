@@ -27,7 +27,7 @@ export function loadRules(lang) {
  * `$A` matches any argument class, so `.SendKeys($A)` covers both
  * `.SendKeys($STR)` and `.SendKeys($ARG)` — the mapping is the same either way.
  */
-function compile(pattern) {
+export function compile(pattern) {
   const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const withWildcards = escaped
     .replace(/\\\$A\b/g, "\\$(?:STR|NUM|ARG|EXPR|LAMBDA)")

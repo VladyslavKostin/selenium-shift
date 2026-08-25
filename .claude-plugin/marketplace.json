@@ -1,6 +1,7 @@
 {
   "name": "selenium-shift",
   "owner": { "name": "Vladyslav Kostin", "url": "https://github.com/VladyslavKostin" },
+  "description": "Language-preserving Selenium to Playwright migration for C# and Java — audits a suite, predicts .NET async impact, and applies the mechanical rewrites without routing source code through the model.",
   "plugins": [
     {
       "name": "selenium-shift",

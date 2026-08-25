@@ -24,7 +24,7 @@
 
 import { scanFile } from "../core/scanner.mjs";
 import { extractChains, fingerprint, touchesSelenium } from "../core/chains.mjs";
-import { loadRules } from "../core/ledger.mjs";
+import { loadRules, compile } from "../core/ledger.mjs";
 
 const LINQ_METHODS = [
   "Where", "Select", "SelectMany", "Any", "All", "First", "FirstOrDefault",
@@ -51,11 +51,20 @@ class UnionFind {
   }
 }
 
-export function analyse(files) {
+export function analyse(files, options = {}) {
   const rules = loadRules("csharp");
-  const asyncRuleIds = new Set(
-    rules.rules.filter((r) => r.async && !r.locatorSafe).map((r) => r.match)
-  );
+  // Extra seeds come from the project-local rule overlay: helpers that live
+  // outside the scanned tree, so the closure pass cannot discover on its own
+  // that calling them forces the caller async.
+  const extraSeeds = options.asyncSeeds || [];
+  // Compile each pattern the same way ledger.mjs does — a raw substring check
+  // against `pattern` (e.g. ".SendKeys($A)") never matches a real fingerprint
+  // (e.g. ".SendKeys($ARG)"), because "$A)" isn't a substring of "$ARG)".
+  // That silently dropped seeding for every rule using an $A/$LAMBDA/$R
+  // placeholder — .Navigate().GoToUrl($A), .SendKeys($A), .GetAttribute($A)...
+  const asyncRules = rules.rules
+    .filter((r) => r.async && !r.locatorSafe)
+    .map((r) => ({ id: r.match, re: compile(r.match) }));
 
   const types = [];
   const members = [];
@@ -86,18 +95,28 @@ export function analyse(files) {
   const seeded = new Set();
   const seedReasons = new Map();
 
+  const noteSeed = (m, text) => {
+    seeded.add(m.key);
+    if (!seedReasons.has(m.key)) seedReasons.set(m.key, []);
+    const reasons = seedReasons.get(m.key);
+    if (reasons.length < 3) reasons.push(text.replace(/\s+/g, " ").slice(0, 90));
+  };
+
   for (const m of members) {
     if (m.bodyStart == null) continue;
     const chains = extractChains(m.scan.src, m.scan.masked, m.bodyStart, m.bodyEnd);
     for (const chain of chains) {
       if (!touchesSelenium(chain.text)) continue;
       const { fingerprint: fp } = fingerprint(chain.text);
-      const hit = [...asyncRuleIds].find((pat) => fp === pat || fp.includes(pat));
-      if (hit) {
-        seeded.add(m.key);
-        if (!seedReasons.has(m.key)) seedReasons.set(m.key, []);
-        const reasons = seedReasons.get(m.key);
-        if (reasons.length < 3) reasons.push(chain.text.replace(/\s+/g, " ").slice(0, 90));
+      const hit = asyncRules.find(({ re }) => re.test(fp));
+      if (hit) noteSeed(m, chain.text);
+    }
+
+    if (extraSeeds.length) {
+      const body = m.scan.src.slice(m.bodyStart, m.bodyEnd);
+      for (const re of extraSeeds) {
+        const hit = re.exec(body);
+        if (hit) noteSeed(m, hit[0]);
       }
     }
   }
@@ -223,6 +242,11 @@ export function analyse(files) {
       returnType: m.returnType,
       currentSignature: `${m.mods.join(" ")} ${m.returnType ?? ""} ${m.name}${m.params != null ? `(${m.params})` : ""}`.replace(/\s+/g, " ").trim(),
       proposedSignature: proposeSignature(m),
+      headerStart: m.headerStart,
+      headerEnd: m.headerEnd,
+      bodyStart: m.bodyStart,
+      bodyEnd: m.bodyEnd,
+      expressionBodied: m.expressionBodied,
       reason: via.get(m.key),
       blockers,
       hierarchy: spansTypes.size > 1
